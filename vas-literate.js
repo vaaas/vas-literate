@@ -14,7 +14,7 @@ function* walk_file_directory(root) {
         const pathname = path.join(root, entry)
         const stats = fs.statSync(pathname)
         if (stats.isFile())
-            yield { pathname: pathname, stats: stats }
+            yield { pathname: pathname, mtime: stats.mtime.getTime() }
         else if (stats.isDirectory())
             yield* walk_file_directory(pathname)
     }
@@ -93,7 +93,7 @@ function main(root='literate', dest='src') {
     Object.keys(files).map(path.dirname).forEach(x => fs.mkdirSync(x, { recursive: true }))
     Object.entries(files).forEach(([k, v]) => {
         try {
-            const stats = fs.statSync(k)
+            const mtime = fs.statSync(k).mtime.getTime()
             if (v.mtime > stats.mtime)
                 fs.writeFileSync(k, v.blocks.join('\n'))
         } catch(e) { fs.writeFileSync(k, v.blocks.join('\n')) }
