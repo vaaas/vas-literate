@@ -66,7 +66,7 @@ function process_file(file, root, dest) {
     return (
         reduce(
             (xs, x) => {
-                const k = first(x) ? path.join(dest, first(x)) : guess_file_name(pathname).replace(root, dest)
+                const k = first(x) ? path.join(dest, first(x)) : guess_file_name(file.pathname).replace(root, dest)
                 if (xs[k] === undefined) xs[k] = { mtime: 0, blocks: [] }
                 xs[k].blocks.push(second(x))
 					 xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
