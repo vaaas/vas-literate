@@ -14,7 +14,7 @@ function* walk_file_directory(root) {
         const pathname = path.join(root, entry)
         const stats = fs.statSync(pathname)
         if (stats.isFile())
-            yield pathname
+            yield { pathname: pathname, stats: stats }
         else if (stats.isDirectory())
             yield* walk_file_directory(pathname)
     }
@@ -62,18 +62,19 @@ function process_block(x) {
     return [ file_name, body ]
 }
 
-function process_file(pathname, root, dest) {
+function process_file(file, root, dest) {
     return (
         reduce(
             (xs, x) => {
                 const k = first(x) ? path.join(dest, first(x)) : guess_file_name(pathname).replace(root, dest)
-                if (xs[k] === undefined) xs[k] = []
-                xs[k].push(second(x))
+                if (xs[k] === undefined) xs[k] = { mtime: 0, blocks: [] }
+                xs[k].blocks.push(second(x))
+					 xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
                 return xs
             }, {},
         map(process_block,
         block_generator(
-        fs.readFileSync(pathname, { encoding: 'utf-8' }))))
+        fs.readFileSync(file.pathname, { encoding: 'utf-8' }))))
     )
 }
 
@@ -91,6 +92,10 @@ function main(root='literate', dest='src') {
 
     Object.keys(files).map(path.dirname).forEach(x => fs.mkdirSync(x, { recursive: true }))
     Object.entries(files).forEach(([k, v]) => {
-        fs.writeFileSync(k, v.join('\n'))
+        try {
+            const stats = fs.statSync(k)
+            if (v.mtime > stats.mtime)
+                fs.writeFileSync(k, v.blocks.join('\n'))
+        } catch(e) { fs.writeFileSync(k, v.blocks.join('\n')) }
     })
 }
