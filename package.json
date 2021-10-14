@@ -1,0 +1,11 @@
+{
+  "name": "vas-literate",
+  "version": "1.0.0",
+  "description": "literate programming based on markdown",
+  "main": "vas-literate.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vasileios Pasialiokis",
+  "license": "AGPL-3.0-or-later"
+}
