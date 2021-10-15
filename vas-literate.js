@@ -92,16 +92,13 @@ function main(root='literate', dest='src') {
 
     Object.keys(files).map(path.dirname).forEach(x => fs.mkdirSync(x, { recursive: true }))
     Object.entries(files).forEach(([k, v]) => {
-        try {
-            const mtime = fs.statSync(k).mtime.getTime()
-            if (v.mtime > stats.mtime) {
-                console.error(k, ' was updated, overwriting')
-                fs.writeFileSync(k, v.blocks.join('\n'))
-            } else
-                console.error(k, ' was not updated, so not writing')
-        } catch(e) {
-            console.error(k, ' does not exist, creating')
+        var mtime
+        try { mtime = fs.statSync(k).mtime.getTime() }
+        catch(e) { mtime = 0 }
+        if (v.mtime > mtime) {
+            console.error(k, ' was updated, overwriting')
             fs.writeFileSync(k, v.blocks.join('\n'))
-        }
+        } else
+            console.error(k, ' was not updated, so not writing')
     })
 }
