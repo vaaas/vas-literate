@@ -79,6 +79,8 @@ function process_file(file, root, dest) {
 }
 
 function main(root='literate', dest='src') {
+    const now = Date.now()
+
     const files = (
         reduce(
             (files, x) => {
@@ -101,4 +103,6 @@ function main(root='literate', dest='src') {
         } else
             console.error(k, ' was not updated, so not writing')
     })
+
+    console.log('Completed in', (Date.now() - now)/1000, 'seconds')
 }
