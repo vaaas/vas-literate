@@ -6,8 +6,6 @@ import * as path from 'path'
 import * as fpjs from 'fpjs'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 
-main(...process.argv.slice(2))
-
 function* walk_file_directory(root) {
     for (const entry of fs.readdirSync(root)) {
         const pathname = path.join(root, entry)
@@ -114,3 +112,5 @@ function main(root='literate', dest='src') {
 
     console.log('Completed in', (Date.now() - now)/1000, 'seconds')
 }
+
+main(...process.argv.slice(2))
