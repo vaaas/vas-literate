@@ -32,9 +32,7 @@ function* block_generator(string) {
     }
 }
 
-function guess_file_name(pathname) {
-    return pathname.slice(0, pathname.lastIndexOf('.'))
-}
+const guess_file_name = x => x.slice(0, x.lastIndexOf('.'))
 
 function process_block(x) {
     const first_newline = x.indexOf('\n')
@@ -63,30 +61,28 @@ function process_block(x) {
     return { file_name, body, mode, owner, group, }
 }
 
-function process_file(file, root, dest) {
-    return pipe(
-        fs.readFileSync(file.pathname, { encoding: 'utf-8' }),
-        block_generator,
-        map(process_block),
-        foldl(xs => x => {
-            const k = x.file_name ?
-                path.join(dest, x.file_name) :
-                guess_file_name(file.pathname).replace(root, dest)
-            if (xs[k] === undefined)
-                xs[k] = {
-                    mtime: 0,
-                    blocks: [],
-                    mode: null,
-                    group: null,
-                    owner: null,
-                }
-            xs[k].blocks.push(x.body)
-            xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
-            for (const f of ['mode', 'group', 'owner'])
-                xs[k][f] = xs[k][f] || x[f]
-            return xs
-        })({}))
-}
+const process_file = (file, root, dest) => pipe(
+    fs.readFileSync(file.pathname, { encoding: 'utf-8' }),
+    block_generator,
+    map(process_block),
+    foldl(xs => x => {
+        const k = x.file_name ?
+            path.join(dest, x.file_name) :
+            guess_file_name(file.pathname).replace(root, dest)
+        if (xs[k] === undefined)
+            xs[k] = {
+                mtime: 0,
+                blocks: [],
+                mode: null,
+                group: null,
+                owner: null,
+            }
+        xs[k].blocks.push(x.body)
+        xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
+        for (const f of ['mode', 'group', 'owner'])
+            xs[k][f] = xs[k][f] || x[f]
+        return xs
+    })({}))
 
 function main(root='literate', dest='src') {
     const now = Date.now()
