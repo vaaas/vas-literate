@@ -85,7 +85,6 @@ const process_file = (file, root, dest) => pipe(
 function main(root='literate', dest='src') {
     const now = Date.now()
     const stats = fs.statSync(root)
-
     const files = pipe(
         stats.isFile() ?
             [process_file({ pathname: './' + root, mtime: stats.mtime }, '.', dest)] :
@@ -105,9 +104,7 @@ function main(root='literate', dest='src') {
                     console.error(k, 'was updated, overwriting')
                     fs.writeFileSync(k, v.blocks.join('\n'))
                 },
-                () => {
-                    console.error(k, 'was not updated, so not writing')
-                }))),
+                () => console.error(k, 'was not updated, so not writing')))),
         each(([k, v]) => { if (v.mode) fs.chmodSync(k, v.mode) }))
 
     console.log('Completed in', (Date.now() - now)/1000, 'seconds')
