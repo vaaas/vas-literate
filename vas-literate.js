@@ -104,11 +104,11 @@ function main(root='literate', dest='src') {
             failure(K(0)),
             ifelse(lt(v.mtime))
                 (() => {
-                    console.error(k, ' was updated, overwriting')
+                    console.error(k, 'was updated, overwriting')
                     fs.writeFileSync(k, v.blocks.join('\n'))
                 },
                 () => {
-                    console.error(k, ' was not updated, so not writing')
+                    console.error(k, 'was not updated, so not writing')
                 }))),
         each(([k, v]) => { if (v.mode) fs.chmodSync(k, v.mode) }))
 
