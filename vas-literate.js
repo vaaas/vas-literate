@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 "use strict"
 
-const fs = require('fs')
-const path = require('path')
-
-const second = x => x[1]
+import * as fs from 'fs'
+import * as path from 'path'
+import * as fpjs from 'fpjs'
+for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 
 main(...process.argv.slice(2))
 
@@ -17,21 +17,6 @@ function* walk_file_directory(root) {
         else if (stats.isDirectory())
             yield* walk_file_directory(pathname)
     }
-}
-
-function cloneKeys(a, b) {
-    for (const [k, v] of Object.entries(b)) a[k] = v
-    return a
-}
-
-function reduce(f, i, xs) {
-    let a = i
-    for (const x of xs) a = f(a, x)
-    return a
-}
-
-function* map(f, xs) {
-    for (const x of xs) yield f(x)
 }
 
 function* block_generator(string) {
@@ -79,8 +64,11 @@ function process_block(x) {
 }
 
 function process_file(file, root, dest) {
-    return reduce(
-        (xs, x) => {
+    return pipe(
+        fs.readFileSync(file.pathname, { encoding: 'utf-8' }),
+        block_generator,
+        map(process_block),
+        foldl(xs => x => {
             const k = x.file_name ?
                 path.join(dest, x.file_name) :
                 guess_file_name(file.pathname).replace(root, dest)
@@ -97,43 +85,36 @@ function process_file(file, root, dest) {
             for (const f of ['mode', 'group', 'owner'])
                 xs[k][f] = xs[k][f] || x[f]
             return xs
-        }, {},
-        map(process_block,
-        block_generator(
-        fs.readFileSync(file.pathname, { encoding: 'utf-8' }))))
+        })({}))
 }
 
 function main(root='literate', dest='src') {
     const now = Date.now()
-
     const stats = fs.statSync(root)
-    const files = reduce(
-        (files, x) => {
-            for (const [k, v] of Object.entries(x))
-                files[k] = v
-            return files
-        }, {},
+
+    const files = pipe(
         stats.isFile() ?
             [process_file({ pathname: './' + root, mtime: stats.mtime }, '.', dest)] :
-            map(x => process_file(x, root, dest), walk_file_directory(root)))
+            map(x => process_file(x, root, dest), walk_file_directory(root)),
+        foldr(update)({}))
 
-    Object.keys(files)
-        .map(path.dirname)
-        .forEach(x => fs.mkdirSync(x, { recursive: true }))
+    pipe(Object.keys(files),
+        map(path.dirname),
+        each(x => fs.mkdirSync(x, { recursive: true })))
 
-    Object.entries(files)
-        .forEach(([k, v]) => {
-            var mtime
-            try { mtime = fs.statSync(k).mtime.getTime() }
-            catch(e) { mtime = 0 }
-            if (v.mtime > mtime) {
-                console.error(k, ' was updated, overwriting')
-                fs.writeFileSync(k, v.blocks.join('\n'))
-            } else
-                console.error(k, ' was not updated, so not writing')
-            if (v.mode)
-                fs.chmodSync(k, v.mode)
-        })
+    pipe(Object.entries(files),
+        each(([k, v]) => pipe(
+            attempt(() => fs.statSync(k).mtime.getTime()),
+            failure(K(0)),
+            ifelse(lt(v.mtime))
+                (() => {
+                    console.error(k, ' was updated, overwriting')
+                    fs.writeFileSync(k, v.blocks.join('\n'))
+                },
+                () => {
+                    console.error(k, ' was not updated, so not writing')
+                }))),
+        each(([k, v]) => { if (v.mode) fs.chmodSync(k, v.mode) }))
 
     console.log('Completed in', (Date.now() - now)/1000, 'seconds')
 }
