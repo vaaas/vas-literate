@@ -95,7 +95,7 @@ function main(root='literate', dest='src') {
     const files = pipe(
         stats.isFile() ?
             [process_file({ pathname: './' + root, mtime: stats.mtime }, '.', dest)] :
-            map(x => process_file(x, root, dest)(walk_file_directory(root))),
+            map(x => process_file(x, root, dest))(walk_file_directory(root)),
         foldr(update)({}))
 
     pipe(Object.keys(files),
