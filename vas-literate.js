@@ -4,7 +4,6 @@
 const fs = require('fs')
 const path = require('path')
 
-const first = x => x[0]
 const second = x => x[1]
 
 main(...process.argv.slice(2))
@@ -21,8 +20,7 @@ function* walk_file_directory(root) {
 }
 
 function cloneKeys(a, b) {
-    for (const x of Object.entries(b))
-        a[first(x)] = second(x)
+    for (const [k, v] of Object.entries(b)) a[k] = v
     return a
 }
 
@@ -57,20 +55,47 @@ function process_block(x) {
     const first_newline = x.indexOf('\n')
     const first_line = x.slice(0, first_newline).trim()
     const first_line_parts = first_line.split(/\s+/)
-    const file_name = first_line_parts.length < 2 ? null : second(first_line_parts)
+    let file_name = null
+    let mode = null
+    let owner = null
+    let group = null
+    for (let i = 1; i < first_line_parts.length; i++) {
+        const x = first_line_parts[i]
+        const y = first_line_parts[i+1]
+        if (y === undefined) file_name = x
+        else if (x === ':mode') {
+            mode = y
+            i++
+        } else if (x === ':owner') {
+            owner = y
+            i++
+        } else if (x === ':group') {
+            group = y
+            i++
+        } else file_name = x
+    }
     const body = x.slice(first_newline).trim()
-    return [ file_name, body ]
+    return { file_name, body, mode, owner, group, }
 }
 
 function process_file(file, root, dest) {
     return reduce(
         (xs, x) => {
-            const k = first(x) ?
-                path.join(dest, first(x)) :
+            const k = x.file_name ?
+                path.join(dest, x.file_name) :
                 guess_file_name(file.pathname).replace(root, dest)
-            if (xs[k] === undefined) xs[k] = { mtime: 0, blocks: [] }
-            xs[k].blocks.push(second(x))
-                 xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
+            if (xs[k] === undefined)
+                xs[k] = {
+                    mtime: 0,
+                    blocks: [],
+                    mode: null,
+                    group: null,
+                    owner: null,
+                }
+            xs[k].blocks.push(x.body)
+            xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
+            for (const f of ['mode', 'group', 'owner'])
+                xs[k][f] = xs[k][f] || x[f]
             return xs
         }, {},
         map(process_block,
@@ -106,6 +131,8 @@ function main(root='literate', dest='src') {
                 fs.writeFileSync(k, v.blocks.join('\n'))
             } else
                 console.error(k, ' was not updated, so not writing')
+            if (v.mode)
+                fs.chmodSync(k, v.mode)
         })
 
     console.log('Completed in', (Date.now() - now)/1000, 'seconds')
