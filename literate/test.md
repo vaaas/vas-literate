@@ -5,5 +5,7 @@ console.log("Hello, world!")
 ```
 
 ```javascript /
-code('javascript', 'best.js', 'console.log(666)')
+code('javascript', 'best.js', 'console.log(666)') +
+'\n\n' +
+table([ { name: 'Bob', surname: 'McBob' } ])
 ```

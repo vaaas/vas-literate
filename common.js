@@ -30,7 +30,7 @@ export const h5 = x => '##### ' + x
 export const h6 = x => '###### ' + x
 
 export function table (xs) {
-    const fields = pipe(xs, map(Object.keys), flatten(1), Set.from)
+    const fields = pipe(xs, map(Object.keys), flatten(1), N(Set))
 
     const head = pipe(fields,
         map(tag('th')),
