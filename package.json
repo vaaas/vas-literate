@@ -10,10 +10,11 @@
     "author": "Vasileios Pasialiokis",
     "license": "AGPL-3.0-or-later",
     "repository": {
-    "type": "git",
+        "type": "git",
         "url": "https://github.com/vaaas/vas-literate.git"
     },
     "dependencies": {
+        "commonmark": "^0.30.0",
         "fpjs": "github:vaaas/fpjs"
     }
 }

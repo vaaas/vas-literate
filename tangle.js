@@ -5,74 +5,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as fpjs from 'fpjs'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
-
-const code = (lang, file, code) =>
-    "```" +
-    [lang, file].filter(I).join(' ') +
-    "\n" +
-    code +
-    "\n" +
-    "```"
-
-const h1 = x => '# ' + x,
-    h2 = x => '## ' + x,
-    h3 = x => '### ' + x,
-    h4 = x => '#### ' + x,
-    h5 = x => '##### ' + x,
-    h6 = x => '###### ' + x
-
-function table (xs) {
-    const fields = pipe(xs, map(Object.keys), flatten(1), Set.from)
-
-    const head = pipe(fields,
-        map(tag('th')),
-        join(' '),
-        tag('tr'),
-        tag('thead'))
-
-    const body = pipe(xs,
-        map(x => pipe(
-            fields,
-            map(get),
-            map(T(x)),
-            map(tag('td')),
-            join(' '))),
-        map(tag('tr')),
-        join('\n'),
-        tag('tbody'))
-
-    return pipe([ head, body ], join('\n'), tag('table'))
-}
-
-const tag = t => x => '<' + t + '>' + x + '</' + t + '>'
-
-function* walk_file_directory(root) {
-    for (const entry of fs.readdirSync(root)) {
-        const pathname = path.join(root, entry)
-        const stats = fs.statSync(pathname)
-        if (stats.isFile())
-            yield { pathname: pathname, mtime: stats.mtime.getTime() }
-        else if (stats.isDirectory())
-            yield* walk_file_directory(pathname)
-    }
-}
-
-function* block_generator(string) {
-    var i = 0
-    while (true) {
-        const start = string.indexOf('```', i)
-        if (start === -1)
-            break
-        if (start > 0 && string[start-1] !== '\n')
-            continue
-        i = start + 3
-        const end = string.indexOf('```', i)
-        if (end === -1)
-            break
-        i = end + 3
-        yield string.slice(start+3, end)
-    }
-}
+import * as common from './common.js'
+for (const [k, v] of Object.entries(common)) globalThis[k] = v
+import { walk_file_directory } from './common.js'
 
 const guess_file_name = x => x.slice(0, x.lastIndexOf('.'))
 
