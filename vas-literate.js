@@ -6,6 +6,21 @@ import * as path from 'path'
 import * as fpjs from 'fpjs'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 
+const code = (lang, file, code) =>
+    "```" +
+    [lang, file].filter(I).join(' ') +
+    "\n" +
+    code +
+    "\n" +
+    "```"
+
+const h1 = x => '# ' + x,
+    h2 = x => '## ' + x,
+    h3 = x => '### ' + x,
+    h4 = x => '#### ' + x,
+    h5 = x => '##### ' + x,
+    h6 = x => '###### ' + x
+
 function* walk_file_directory(root) {
     for (const entry of fs.readdirSync(root)) {
         const pathname = path.join(root, entry)
@@ -21,10 +36,14 @@ function* block_generator(string) {
     var i = 0
     while (true) {
         const start = string.indexOf('```', i)
-        if (start === -1) break
+        if (start === -1)
+            break
+        if (start > 0 && string[start-1] !== '\n')
+            continue
         i = start + 3
         const end = string.indexOf('```', i)
-        if (end === -1) break
+        if (end === -1)
+            break
         i = end + 3
         yield string.slice(start+3, end)
     }
@@ -56,13 +75,17 @@ function process_block(x) {
         } else file_name = x
     }
     const body = x.slice(first_newline).trim()
-    return { file_name, body, mode, owner, group, }
+    if (file_name === '/')
+        return pipe(eval(body), block_generator, map(process_block))
+    else
+        return { file_name, body, mode, owner, group, }
 }
 
 const process_file = (file, root, dest) => pipe(
     fs.readFileSync(file.pathname, { encoding: 'utf-8' }),
     block_generator,
     map(process_block),
+    flatten_until(B(not)(isIterable)),
     foldl(xs => x => {
         const k = x.file_name ?
             path.join(dest, x.file_name) :
