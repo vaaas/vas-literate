@@ -53,20 +53,3 @@ export function table (xs) {
 }
 
 export const tag = t => x => '<' + t + '>' + x + '</' + t + '>'
-
-export function* block_generator(string) {
-    var i = 0
-    while (true) {
-        const start = string.indexOf('```', i)
-        if (start === -1)
-            break
-        if (start > 0 && string[start-1] !== '\n')
-            continue
-        i = start + 3
-        const end = string.indexOf('```', i)
-        if (end === -1)
-            break
-        i = end + 3
-        yield string.slice(start+3, end)
-    }
-}

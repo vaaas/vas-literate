@@ -7,9 +7,25 @@ import * as fpjs from 'fpjs'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 import * as common from './common.js'
 for (const [k, v] of Object.entries(common)) globalThis[k] = v
-import { walk_file_directory } from './common.js'
 
 const guess_file_name = x => x.slice(0, x.lastIndexOf('.'))
+
+function* block_generator(string) {
+    var i = 0
+    while (true) {
+        const start = string.indexOf('```', i)
+        if (start === -1)
+            break
+        if (start > 0 && string[start-1] !== '\n')
+            continue
+        i = start + 3
+        const end = string.indexOf('```', i)
+        if (end === -1)
+            break
+        i = end + 3
+        yield string.slice(start+3, end)
+    }
+}
 
 function process_block(x) {
     const first_newline = x.indexOf('\n')
