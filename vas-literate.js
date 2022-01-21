@@ -21,6 +21,31 @@ const h1 = x => '# ' + x,
     h5 = x => '##### ' + x,
     h6 = x => '###### ' + x
 
+function table (xs) {
+    const fields = pipe(xs, map(Object.keys), flatten(1), Set.from)
+
+    const head = pipe(fields,
+        map(tag('th')),
+        join(' '),
+        tag('tr'),
+        tag('thead'))
+
+    const body = pipe(xs,
+        map(x => pipe(
+            fields,
+            map(get),
+            map(T(x)),
+            map(tag('td')),
+            join(' '))),
+        map(tag('tr')),
+        join('\n'),
+        tag('tbody'))
+
+    return pipe([ head, body ], join('\n'), tag('table'))
+}
+
+const tag = t => x => '<' + t + '>' + x + '</' + t + '>'
+
 function* walk_file_directory(root) {
     for (const entry of fs.readdirSync(root)) {
         const pathname = path.join(root, entry)
