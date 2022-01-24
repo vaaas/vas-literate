@@ -4,6 +4,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as fpjs from 'fpjs'
+import { serialise } from 'js-serialiser'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 import * as common from './common.js'
 for (const [k, v] of Object.entries(common)) globalThis[k] = v
