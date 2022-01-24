@@ -54,7 +54,7 @@ export function table (xs) {
 
 export const tag = t => x => '<' + t + '>' + x + '</' + t + '>'
 
-export const function plist_to_alist(x) {
+export function plist_to_alist(x) {
     const alist = []
     for (let i = 0; i < x.length; i += 2)
         alist.push(x[i], x[i+1])
