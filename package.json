@@ -1,7 +1,7 @@
 {
     "name": "vas-literate",
     "type": "module",
-    "version": "2.0.4",
+    "version": "2.0.5",
     "description": "literate programming based on markdown",
     "main": "tangle.js",
     "scripts": {

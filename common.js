@@ -4,14 +4,22 @@ import * as fpjs from 'fpjs'
 for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
 
 export function* walk_file_directory(root) {
-    for (const entry of fs.readdirSync(root)) {
-        const pathname = path.join(root, entry)
-        const stats = fs.statSync(pathname)
-        if (stats.isFile())
-            yield { pathname: pathname, mtime: stats.mtime.getTime() }
-        else if (stats.isDirectory())
-            yield* walk_file_directory(pathname)
-    }
+    const make_entry = x => ({ pathname: x[0], mtime: x[1].mtime.getTime() })
+    const isfile = x => x[1].isFile()
+    const isdir = x => x[1].isDirectory()
+
+    const entries = fs.readdirSync(root).map(x => [
+        path.join(root, x),
+        fs.statSync(path.join(root, x))
+    ])
+
+    yield* entries
+        .filter(isfile)
+        .sort(by(first))
+        .map(make_entry)
+
+    for (const x of entries.filter(isdir).sort(by(first)))
+        yield* walk_file_directory(x[0])
 }
 
 export const code = (lang, file, code) =>
