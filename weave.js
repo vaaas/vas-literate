@@ -85,7 +85,7 @@ function main(root='literate', dest='weave.html') {
     pipe(
         walk_file_directory(root),
         map(get('pathname')),
-        sort(by(I)),
+        sort(by(arrow(split('/'), len), I)),
         map(x => fs.readFileSync(x).toString()),
         map(expand_macros),
         join('\n\n'),
