@@ -14,8 +14,6 @@
         "url": "https://github.com/vaaas/vas-literate.git"
     },
     "dependencies": {
-        "commonmark": "^0.30.0",
-        "fpjs": "github:vaaas/fpjs",
-        "js-serialiser": "github:vaaas/js-serialiser"
+        "commonmark": "^0.30.0"
     }
 }

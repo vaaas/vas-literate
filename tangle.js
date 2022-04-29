@@ -3,111 +3,135 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import * as fpjs from 'fpjs'
-import { serialise } from 'js-serialiser'
-for (const [k, v] of Object.entries(fpjs)) globalThis[k] = v
-import * as common from './common.js'
-for (const [k, v] of Object.entries(common)) globalThis[k] = v
 
+const T = x => f => f(x)
+const by = f => (a,b) => f(a) < f(b) ? -1 : 1
+const first = x => x[0]
 const guess_file_name = x => x.slice(0, x.lastIndexOf('.'))
 
+const popduce = (f, i, xs) => {
+	while(xs.length) i = f(i, xs.pop(), xs)
+	return i
+}
+
+// string -> Structure(pathname: string, mtime: Integer)
+function* walk_file_directory(root) {
+	const make_entry = x => ({ pathname: x[0], mtime: x[1].mtime.getTime() })
+	const isfile = x => x[1].isFile()
+	const isdir = x => x[1].isDirectory()
+
+	const entries = fs.readdirSync(root)
+		.map(x => [
+			path.join(root, x),
+			fs.statSync(path.join(root, x))
+		])
+
+	yield* entries
+		.filter(isfile)
+		.sort(by(x => x[0]))
+		.map(make_entry)
+
+	for (const x of entries.filter(isdir).sort(by(first)))
+		yield* walk_file_directory(x[0])
+}
+
+// string -> Iterable string
 function* block_generator(string) {
-    var i = 0
-    while (true) {
-        const start = string.indexOf('```', i)
-        if (start === -1)
-            break
-        if (start > 0 && string[start-1] !== '\n')
-            continue
-        i = start + 3
-        const end = string.indexOf('```', i)
-        if (end === -1)
-            break
-        i = end + 3
-        yield string.slice(start+3, end)
-    }
+	var i = 0
+	while (true) {
+		const start = string.indexOf('```', i)
+		if (start === -1)
+			break
+		if (start > 0 && string[start-1] !== '\n')
+			continue
+		i = start + 3
+		const end = string.indexOf('```', i)
+		if (end === -1)
+			break
+		i = end + 3
+		yield string.slice(start+3, end)
+	}
 }
 
-function process_block(x) {
-    const first_newline = x.indexOf('\n')
-    const first_line = x.slice(0, first_newline).trim()
-    const first_line_parts = first_line.split(/\s+/)
-    let file_name = null
-    let mode = null
-    let owner = null
-    let group = null
-    for (let i = 1; i < first_line_parts.length; i++) {
-        const x = first_line_parts[i]
-        const y = first_line_parts[i+1]
-        if (y === undefined) file_name = x
-        else if (x === ':mode') {
-            mode = y
-            i++
-        } else if (x === ':owner') {
-            owner = y
-            i++
-        } else if (x === ':group') {
-            group = y
-            i++
-        } else file_name = x
-    }
-    const body = x.slice(first_newline).trim()
-    if (file_name === '/')
-        return pipe(eval(body), block_generator, map(process_block))
-    else
-        return { file_name, body, mode, owner, group, }
-}
+// string -> Structure(file_name: string, mode: maybe(string), owner: maybe(string), group: maybe(string), body: string)
+const process_block = x => T(x.indexOf('\n'))(index =>
+	popduce(
+		(r, x, xs) => {
+			switch (x) {
+				case ':mode': r.mode = xs.pop(); break
+				case ':owner': r.owner = xs.pop(); break
+				case ':group': r.group = xs.pop(); break
+				default: r.file_name = x; break
+			}
+			return r
+		},
 
-const process_file = (file, root, dest) => pipe(
-    fs.readFileSync(file.pathname, { encoding: 'utf-8' }),
-    block_generator,
-    map(process_block),
-    flatten_until(B(not)(isIterable)),
-    foldl(xs => x => {
-        const k = x.file_name ?
-            path.join(dest, x.file_name) :
-            guess_file_name(file.pathname).replace(root, dest)
-        if (xs[k] === undefined)
-            xs[k] = {
-                mtime: 0,
-                blocks: [],
-                mode: null,
-                group: null,
-                owner: null,
-            }
-        xs[k].blocks.push(x.body)
-        xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
-        for (const f of ['mode', 'group', 'owner'])
-            xs[k][f] = xs[k][f] || x[f]
-        return xs
-    })({}))
+ 		{
+			file_name: null,
+			mode: null,
+			owner: null,
+			group: null,
+			body: x.slice(index).trim()
+		},
+
+		x.slice(0, index)
+			.trim()
+			.split(/\s+/)
+			.slice(1)
+			.reverse()
+	))
+
+// (string, string, string) -> Structure(mtime: integer, blocks: Array string, mode: maybe(string), group: maybe(string), owner: maybe(string))
+const process_file = (file, root, dest) =>
+	Array.from(
+		block_generator(
+			fs.readFileSync(file.pathname, { encoding: 'utf-8' })
+		)
+	)
+	.map(process_block)
+	.reduce((xs, x) => {
+		const k = x.file_name
+			? path.join(dest, x.file_name)
+			: guess_file_name(file.pathname).replace(root, dest)
+		if (xs[k] === undefined)
+			xs[k] = { mtime: 0, blocks: [], mode: null, group: null, owner: null, }
+		xs[k].blocks.push(x.body)
+		xs[k].mtime = Math.max(xs[k].mtime, file.mtime)
+		return xs
+	}, {})
 
 function main(root='literate', dest='src') {
-    const now = Date.now()
-    const stats = fs.statSync(root)
-    const files = pipe(
-        stats.isFile() ?
-            [process_file({ pathname: './' + root, mtime: stats.mtime }, '.', dest)] :
-            map(x => process_file(x, root, dest))(walk_file_directory(root)),
-        foldr(update)({}))
+	const now = Date.now()
+	const stats = fs.statSync(root)
 
-    pipe(Object.keys(files),
-        map(path.dirname),
-        each(x => fs.mkdirSync(x, { recursive: true })))
+	const files = (() => {
+		if (stats.isFile())
+			return process_file({ pathname: './' + root, mtime: stats.mtime }, '.', dest)
+		else
+			return Array.from(walk_file_directory(root))
+				.map(x => process_file(x, root, dest))
+				.reduce(
+					(a, b) => {
+						for (const [k, v] of Object.entries(b)) a[k] = v
+						return a
+					},
+					{})
+	})()
 
-    pipe(Object.entries(files),
-        each(([k, v]) => pipe(
-            attempt(() => fs.statSync(k).mtime.getTime()),
-            failure(K(0)),
-            ifelse(lt(v.mtime))
-                (() => {
-                    console.error(k, 'was updated, overwriting')
-                    fs.writeFileSync(k, v.blocks.join('\n'))
-                },
-                () => console.error(k, 'was not updated, so not writing')))),
-        each(([k, v]) => { if (v.mode) fs.chmodSync(k, v.mode) }))
+	Object.entries(files)
+		.forEach(([k, v]) => {
+			fs.mkdirSync(path.dirname(k), { recursive: true })
+			const mtime = (() => {
+				try { return fs.statSync(k).mtime.getTime() }
+				catch(e) { return 0 }
+			})()
+			if (mtime < v.mtime) {
+				console.error(k, 'was updated, overwriting')
+				fs.writeFileSync(k, v.blocks.join('\n'))
+			} else console.error(k, 'was not updated, so not writing')
+		})
 
-    console.log('Completed in', (Date.now() - now)/1000, 'seconds')
+	console.log('Completed in', (Date.now() - now)/1000, 'seconds')
 }
 
 main(...process.argv.slice(2))
