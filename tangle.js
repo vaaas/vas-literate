@@ -77,11 +77,13 @@ const process_block = x =>
 			group: null,
 			body: x.literal,
 		})
+}
 
 // (string, string, string) -> Structure(mtime: integer, blocks: Array string, mode: maybe(string), group: maybe(string), owner: maybe(string))
 const process_file = (file, root, dest) =>
 	block_generator(fs.readFileSync(file.pathname, { encoding: 'utf-8' }))
 	.toArray()
+	.filter(x => x.info)
 	.map(process_block)
 	.reduce((xs, x) => {
 		const k = x.file_name
