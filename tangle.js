@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-"use strict"
+'use strict'
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { Parser } from 'commonmark'
 
 // helper functions
+const print = x => { console.log(x) ; return x }
 const T = x => f => f(x)
 const by = f => (a,b) => f(a) < f(b) ? -1 : 1
 const first = x => x[0]
@@ -41,48 +43,40 @@ function* walk_file_directory(root) {
 		yield* walk_file_directory(x[0])
 }
 
-// string -> Iterable string
+// string -> Iterable node
 function* block_generator(string) {
-	var i = 0
-	while (true) {
-		const start = string.indexOf('```', i)
-		if (start === -1)
-			break
-		if (start > 0 && string[start-1] !== '\n')
-			continue
-		i = start + 3
-		const end = string.indexOf('```', i)
-		if (end === -1)
-			break
-		i = end + 3
-		yield string.slice(start+3, end)
+	const walker = new Parser().parse(string).walker()
+	let x
+	while ((x = walker.next())) {
+		x = x.node
+		if (x.type === 'code_block') yield x
 	}
 }
 
-// string -> Structure(file_name: string, mode: maybe(string), owner: maybe(string), group: maybe(string), body: string)
-const process_block = x => T(x.indexOf('\n'))(index =>
-	x.slice(0, index)
-		.trim()
-		.split(/\s+/)
-		.slice(1)
-		.reverse()
-		.popduce(
-			(r, x, xs) => {
-				switch (x) {
-					case ':mode': r.mode = xs.pop(); break
-					case ':owner': r.owner = xs.pop(); break
-					case ':group': r.group = xs.pop(); break
-					default: r.file_name = x; break
-				}
-				return r
-			},
-			{
-				file_name: null,
-				mode: null,
-				owner: null,
-				group: null,
-				body: x.slice(index).trim()
-			}))
+// node -> Structure(file_name: string, mode: maybe(string), owner: maybe(string), group: maybe(string), body: string)
+const process_block = x =>
+	x.info
+	.trim()
+	.split(/\s+/)
+	.slice(1)
+	.reverse()
+	.popduce(
+		(r, x, xs) => {
+			switch (x) {
+				case ':mode': r.mode = xs.pop(); break
+				case ':owner': r.owner = xs.pop(); break
+				case ':group': r.group = xs.pop(); break
+				default: r.file_name = x; break
+			}
+			return r
+		},
+		{
+			file_name: null,
+			mode: null,
+			owner: null,
+			group: null,
+			body: x.literal,
+		})
 
 // (string, string, string) -> Structure(mtime: integer, blocks: Array string, mode: maybe(string), group: maybe(string), owner: maybe(string))
 const process_file = (file, root, dest) =>
